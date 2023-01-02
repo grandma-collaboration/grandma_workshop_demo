@@ -14,6 +14,7 @@ import ligo.skymap.io
 import ligo.skymap.postprocess
 import ligo.skymap.bayestar as ligo_bayestar
 from scipy.stats import norm, rv_discrete
+import time
 
 cfg = {
     "server": {
@@ -482,15 +483,73 @@ def create_demo_candidates_fits(token, ra, dec, distn, nside, jd, nb_obj=100, st
         else:
             print(response.text)
 
+def get_ztf_instrument_and_telescope_name(token):
+    # get all instruments from skyportal
+    response = api_skyportal('get', '/api/instrument', token=token)
+    if response.status_code == 200:
+        instruments = response.json()['data']
+    else:
+        print(response.text)
+        return
+
+    instrument = [i for i in instruments if (i['name'] == 'ZTF' or i['name'] == 'CFH12k')][0]
+    return instrument['name'], instrument['telescope']['name']
+
+def post_observations(token, start_time):
+    df = pd.read_csv('observations.csv')
+    df = df[['observation_id', 'obstime', 'exposure_time', 'filt', 'seeing', 'limmag', 'field_id', 'ra', 'dec']]
+    df.rename(columns={'ra': 'RA', 'dec': 'Dec', 'filt': 'filter'}, inplace=True)
+
+    df['obstime'] = df['obstime'].astype(str)
+    min_obstime = Time(df['obstime'].min(), format='isot', scale='utc').jd
+
+    for i in range(len(df['obstime'])):
+        df['obstime'][i] = Time(df['obstime'][i], format='isot', scale='utc').jd
+
+    df['obstime'] = df['obstime'] - min_obstime + start_time
+
+    for i in range(len(df['obstime'])):
+        df['obstime'][i] = Time(df['obstime'][i], format='jd', scale='utc').isot
+
+    df_dict = df.to_dict(orient='list')
+
+    instrument_name, telescope_name = get_ztf_instrument_and_telescope_name(token)
+
+    data = {
+        'instrumentName': instrument_name,
+        'telescopeName': telescope_name,
+        'observationData': df_dict,
+    }
+    response = api_skyportal('post', '/api/observation', data=data, token=token)
+    if response.status_code == 200:
+        print(response.json())
+    else:
+        print(response.text)
 
 def main():
-    token = '59cbac6c-f35f-4588-86c3-10edd52a76ff'
-    jd, ra, dec, error_radius = create_demo_event_point(token)
-    create_demo_candidates(token, ra, dec, error_radius, jd, nb_obj=100, start_index=0)
+    # measure time to create the demo
+    start_time = time.time()
+    token = '31792488-c4f3-4543-bd1f-0260e4cf8672'
+    jd1, ra1, dec1, distn1, nside1 = create_demo_event_fits(token) # GW
+    time.sleep(5)
 
-    jd, ra, dec, distn, nside = create_demo_event_fits(token)
-    create_demo_candidates_fits(token, ra, dec, distn, nside, jd, nb_obj=100, start_index=100)
+    jd2, ra2, dec2, error_radius2 = create_demo_event_point(token) # GRB
+    step_1 = time.time()
+    print(f'Creating the events took {step_1 - start_time} seconds')
 
+    create_demo_candidates_fits(token, ra1, dec1, distn1, nside1, jd1, nb_obj=100, start_index=0) # CANDIDATES IN GW
+    step_2 = time.time()
+    print(f'Creating the candidates in the GW took {step_2 - step_1} seconds')
+
+    create_demo_candidates(token, ra2, dec2, error_radius2, jd2, nb_obj=100, start_index=100) # CANDIDATES IN GRB
+    step_3 = time.time()
+    print(f'Creating the candidates in the GRB took {step_3 - step_2} seconds')
+
+    post_observations(token, jd1)
+    step_4 = time.time()
+    print(f'Creating the observations took {step_4 - step_3} seconds')
+
+    print(f'Creating the demo took {step_4 - start_time} seconds')
 
 if __name__ == '__main__':
     main()
