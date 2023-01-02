@@ -47,7 +47,7 @@
       <Description>Specific low-latency search</Description>
     </Param>
     <Group name="GW_SKYMAP" type="GW_SKYMAP">
-        <Param name="skymap_fits" value="/Users/mcoughlin/Downloads/runs 2/O4/farah/allsky/1278.fits" ucd="meta.ref.url" dataType="string">
+        <Param name="skymap_fits" value="https://raw.githubusercontent.com/grandma-collaboration/grandma_workshop_demo/main/GW.fits" ucd="meta.ref.url" dataType="string">
         <Description>Sky Map FITS</Description>
       </Param>
     </Group>

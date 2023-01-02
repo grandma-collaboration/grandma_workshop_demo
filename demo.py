@@ -130,7 +130,6 @@ def create_demo_event_point(token):
     root = read_notice(payload)
     t = Time(datetime.utcnow(), scale='utc')
     root = notice_to_date(root, t)
-    print(root.find('Who/Date').text)
     filename = f'{os.path.dirname(__file__)}/GRB_{t.datetime.strftime("%Y%m%dT%H%M%S")}.xml'
     #save_notice(root, filename)
     post_notice(root, token)
@@ -154,7 +153,8 @@ def create_demo_event_fits(token):
 
     # set the skymap path
     skymap_path = f'{os.path.dirname(__file__)}/GW.fits'
-    root = notice_skymap_path(root, skymap_path)
+    # root = notice_skymap_path(root, skymap_path)
+    # WAS REPLACED BY GITHUB RAW LINK
 
     filename = f'{os.path.dirname(__file__)}/GW_{t.datetime.strftime("%Y%m%dT%H%M%S")}.xml'
     #save_notice(root, filename)
@@ -301,9 +301,7 @@ def create_demo_candidates(token, ra, dec, error_radius, jd, nb_obj=100, start_i
             df = df.append(df_tmp, ignore_index=True)
 
     # remove duplicates, that is entries with the same object name and the same jd
-    print(df.shape)
     df = df.drop_duplicates(subset=['object_name', 'jd'])
-    print(df.shape)
 
     # sort the dataframe by object_name
     df = df.sort_values(by=['object_name'])
