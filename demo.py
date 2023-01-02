@@ -15,6 +15,7 @@ import ligo.skymap.postprocess
 import ligo.skymap.bayestar as ligo_bayestar
 from scipy.stats import norm, rv_discrete
 import time
+import hashlib
 
 cfg = {
     "server": {
@@ -90,8 +91,10 @@ def notice_to_date(root, t):
     ivorn = root.attrib['ivorn']
     if ivorn is not None:
         # use regex to replace the date
-        ivorn = re.sub(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}', t.datetime.strftime('%Y-%m-%dT%H:%M:%S'), ivorn)
+        ivorn = 'ivo://demo/ICARE#' + t.datetime.strftime('%Y-%m-%dT%H:%M:%S')
         root.attrib['ivorn'] = ivorn
+    else: 
+        raise ValueError("ivorn is None")
 
     if root.find('What/Param[@name="TrigID"]') is not None:
         # create a random unique number based on the current unix time
@@ -333,11 +336,17 @@ def create_demo_candidates(token, ra, dec, error_radius, jd, nb_obj=100, start_i
         first_det_jd = df[df['object_name'] == object_name].iloc[first_det[0]]['jd']
         df.loc[df['object_name'] == object_name, 'jd'] = df.loc[df['object_name'] == object_name, 'jd'] - first_det_jd + jd + random.uniform(-1, 1)
 
+    # we generate new object names, to avoid conflicts with existing objects
+    # it will consist of the obj name + the decimals of the jd 
+    df_new_object_names = pd.DataFrame()
+    df_new_object_names['object_name'] = df['object_name'].unique()
+    df_new_object_names['new_object_name'] = df['object_name'].unique() + '_' + str(jd).split('.')[1]
+
     # we loop over the entries in the dataframe
     for index, row in df.iterrows():
         # we create a candidate
         data={
-            'id': row['object_name'],
+            'id': df_new_object_names[df_new_object_names['object_name'] == row['object_name']]['new_object_name'].values[0],
             'ra': df_object_names[df_object_names['object_name'] == row['object_name']]['ra'].values[0],
             'dec': df_object_names[df_object_names['object_name'] == row['object_name']]['dec'].values[0],
             'passed_at': jd_to_iso(row['jd']),
@@ -351,7 +360,7 @@ def create_demo_candidates(token, ra, dec, error_radius, jd, nb_obj=100, start_i
 
         # now we create a photometry point
         data = {
-            'obj_id': row['object_name'],
+            'obj_id': df_new_object_names[df_new_object_names['object_name'] == row['object_name']]['new_object_name'].values[0],
             'instrument_id': instrument_id,
             'mjd': row['jd'] - 2400000.5,
             'filter': 'ztf' + row['filter'],
@@ -438,12 +447,18 @@ def create_demo_candidates_fits(token, ra, dec, distn, nside, jd, nb_obj=100, st
         first_det_jd = df[df['object_name'] == object_name].iloc[first_det[0]]['jd']
         df.loc[df['object_name'] == object_name, 'jd'] = df.loc[df['object_name'] == object_name, 'jd'] - first_det_jd + jd + random.uniform(-1, 1)
 
+    # we generate new object names, to avoid conflicts with existing objects
+    # it will consist of the obj name + the decimals of the jd 
+    df_new_object_names = pd.DataFrame()
+    df_new_object_names['object_name'] = df['object_name'].unique()
+    df_new_object_names['new_object_name'] = df['object_name'].unique() + '_' + str(jd).split('.')[1]
+
     # we loop over the entries in the dataframe
     for index, row in df.iterrows():
     
         # we create a candidate
         data={
-            'id': row['object_name'],
+            'id': df_new_object_names[df_new_object_names['object_name'] == row['object_name']]['new_object_name'].values[0],
             'ra': df_object_names[df_object_names['object_name'] == row['object_name']]['ra'].values[0],
             'dec': df_object_names[df_object_names['object_name'] == row['object_name']]['dec'].values[0],
             'passed_at': jd_to_iso(row['jd']),
@@ -457,7 +472,7 @@ def create_demo_candidates_fits(token, ra, dec, distn, nside, jd, nb_obj=100, st
 
         # now we create a photometry point
         data = {
-            'obj_id': row['object_name'],
+            'obj_id': df_new_object_names[df_new_object_names['object_name'] == row['object_name']]['new_object_name'].values[0],
             'instrument_id': instrument_id,
             'mjd': row['jd'] - 2400000.5,
             'filter': 'ztf' + row['filter'],
@@ -508,6 +523,12 @@ def post_observations(token, start_time):
 
     for i in range(len(df['obstime'])):
         df['obstime'][i] = Time(df['obstime'][i], format='jd', scale='utc').isot
+        
+
+    # we generate new observation ids, to avoid conflicts with existing observations, which is obs id + the decimal part of the start time (jd)
+    df['observation_id'] = df['observation_id'].astype(str) + str(start_time).split('.')[1]
+
+    print(f"Posting {len(df)} observations to SkyPortal...")
 
     df_dict = df.to_dict(orient='list')
 
@@ -535,11 +556,11 @@ def main():
     step_1 = time.time()
     print(f'Creating the events took {step_1 - start_time} seconds')
 
-    create_demo_candidates_fits(token, ra1, dec1, distn1, nside1, jd1, nb_obj=100, start_index=0) # CANDIDATES IN GW
+    create_demo_candidates_fits(token, ra1, dec1, distn1, nside1, jd1, nb_obj=10, start_index=0) # CANDIDATES IN GW
     step_2 = time.time()
     print(f'Creating the candidates in the GW took {step_2 - step_1} seconds')
 
-    create_demo_candidates(token, ra2, dec2, error_radius2, jd2, nb_obj=100, start_index=100) # CANDIDATES IN GRB
+    create_demo_candidates(token, ra2, dec2, error_radius2, jd2, nb_obj=10, start_index=10) # CANDIDATES IN GRB
     step_3 = time.time()
     print(f'Creating the candidates in the GRB took {step_3 - step_2} seconds')
 
