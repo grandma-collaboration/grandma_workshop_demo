@@ -556,11 +556,11 @@ def main():
     step_1 = time.time()
     print(f'Creating the events took {step_1 - start_time} seconds')
 
-    create_demo_candidates_fits(token, ra1, dec1, distn1, nside1, jd1, nb_obj=10, start_index=0) # CANDIDATES IN GW
+    create_demo_candidates_fits(token, ra1, dec1, distn1, nside1, jd1, nb_obj=100, start_index=0) # CANDIDATES IN GW
     step_2 = time.time()
     print(f'Creating the candidates in the GW took {step_2 - step_1} seconds')
 
-    create_demo_candidates(token, ra2, dec2, error_radius2, jd2, nb_obj=10, start_index=10) # CANDIDATES IN GRB
+    create_demo_candidates(token, ra2, dec2, error_radius2, jd2, nb_obj=100, start_index=100) # CANDIDATES IN GRB
     step_3 = time.time()
     print(f'Creating the candidates in the GRB took {step_3 - step_2} seconds')
 
